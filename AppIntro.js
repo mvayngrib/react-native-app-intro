@@ -20,6 +20,19 @@ import RenderDots from './components/Dots';
 const windowsWidth = Dimensions.get('window').width;
 const windowsHeight = Dimensions.get('window').height;
 
+const onScrollMethod = Platform.select({
+  android: 'onAndroidScroll',
+  default: 'onScroll'
+})
+
+const getScrollX = Platform.select({
+  android: (appIntro, e) => {
+    const event = e.nativeEvent;
+    return event.position * appIntro.state.width + event.offset * appIntro.state.width;
+  },
+  default: (appIntro, e) => e.nativeEvent.contentOffset.x,
+})
+
 const defaulStyles = {
   header: {
     flex: 0.5,
@@ -126,9 +139,9 @@ export default class AppIntro extends Component {
     let x = 0;
     if (state.dir === 'x') x = diff * state.width;
     if (Platform.OS === 'ios') {
-      context.refs.scrollView.scrollTo({ y: 0, x });
+      context.scrollView.scrollTo({ y: 0, x });
     } else {
-      context.refs.scrollView.setPage(diff);
+      context.scrollView.setPage(diff);
       context.onScrollEnd({
         nativeEvent: {
           position: diff,
@@ -337,13 +350,17 @@ export default class AppIntro extends Component {
       StatusBar.setBackgroundColor(this.shadeStatusBarColor(this.props.pageArray[0].backgroundColor, -0.3), false);
     }
 
+    const pEvent = Animated.event([{ x: this.state.parallax }])
+    const onScroll = e => pEvent({ x: getScrollX(this, e) })
+    const scrollProps = { [onScrollMethod]: onScroll }
     return (
-      <View>
+      <View style={{flexGrow:1}}>
         {androidPages}
         <Swiper
           loop={false}
           index={this.props.defaultIndex}
           renderPagination={this.renderPagination}
+          scrollEventThrottle={16}
           onMomentumScrollEnd={(e, state) => {
             if (this.isToTintStatusBar()) {
               StatusBar.setBackgroundColor(this.shadeStatusBarColor(this.props.pageArray[state.index].backgroundColor, -0.3), false);
@@ -351,9 +368,7 @@ export default class AppIntro extends Component {
 
             this.props.onSlideChange(state.index, state.total);
           }}
-          onScroll={Animated.event(
-            [{ x: this.state.parallax }]
-          )}
+          {...scrollProps}
         >
           {pages}
         </Swiper>
